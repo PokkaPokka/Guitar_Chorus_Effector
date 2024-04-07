@@ -1,0 +1,3 @@
+-include libraries/AudioFile/build/Makefile.link
+-include libraries/Gui/build/Makefile.link
+-include libraries/GuiController/build/Makefile.link
