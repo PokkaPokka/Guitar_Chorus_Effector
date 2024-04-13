@@ -1,10 +1,10 @@
-# 1 "/root/Bela/projects/sample-player_complete/render.cpp"
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp"
 # 1 "<built-in>" 1
 # 1 "<built-in>" 3
 # 365 "<built-in>" 3
 # 1 "<command line>" 1
 # 1 "<built-in>" 2
-# 1 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
 # 1 "./include/Bela.h" 1
 # 61 "./include/Bela.h"
 extern "C"
@@ -3156,7 +3156,7 @@ static inline unsigned int multiplexerChannelForFrame(BelaContext *context, int 
 
 
 }
-# 2 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 2 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
 # 1 "./libraries/AudioFile/AudioFile.h" 1
 
 # 1 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/string" 1 3
@@ -24067,7 +24067,7 @@ namespace AudioFileUtilities {
 
  std::vector<float> loadMono(const std::string& file);
 };
-# 3 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 3 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
 # 1 "./libraries/Gui/Gui.h" 1
 
 
@@ -47226,7 +47226,7 @@ int Gui::sendBuffer(unsigned int bufferId, T value)
  const char* type = typeid(T).name();
  return doSendBuffer(type, bufferId, (const void*)&value, sizeof(T));
 }
-# 4 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 4 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
 # 1 "./libraries/GuiController/GuiController.h" 1
 
 
@@ -47316,7 +47316,13 @@ class GuiController {
 
   static bool controlCallback(JSONObject &root, void* param);
 };
-# 5 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 5 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/chorus.h" 1
+
+
+
+
+
 # 1 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/cmath" 1 3
 # 40 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/cmath" 3
 
@@ -50229,7 +50235,41 @@ namespace std __attribute__ ((__visibility__ ("default")))
 }
 # 1889 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/cmath" 3
 }
-# 6 "/root/Bela/projects/sample-player_complete/render.cpp" 2
+# 7 "/root/Bela/projects/Guitar_Chorus_Effctor/chorus.h" 2
+
+
+class Chorus {
+ private:
+     float gMixLevel;
+     float gBaseDelayTime;
+     float gModulationDepth;
+     float gLFOFrequency;
+     float gLFOPhase;
+
+     std::vector<float> gDelayBuffer;
+     int gDelayReadPointer;
+     int gDelayWritePointer;
+     float gSampleRate;
+
+     void updateLFOPhase();
+     float calculateDelayTime();
+
+ public:
+     Chorus(float sampleRate, float baseDelayTime, float modulationDepth, float lfoFrequency);
+
+
+     float process(float inputSample);
+
+
+     void setMixLevel(float mixLevel);
+
+
+     void setBaseDelayTime(float baseDelayTime);
+
+
+     void setLFOFrequency(float lfoFrequency);
+};
+# 6 "/root/Bela/projects/Guitar_Chorus_Effctor/render.cpp" 2
 
 Gui gui;
 GuiController gGuiController;
@@ -50238,15 +50278,8 @@ std::string gFilename = "guitarLoop.wav";
 std::vector<float> gSampleBuffer;
 int gReadPointer = 0;
 
-float gMixLevel = 0.5;
-float gBaseDelayTime = 0.03;
-float gModulationDepth = 0.01;
-float gLFOFrequency = 0.5;
-float gLFOPhase = 0.0;
 
-std::vector<float> gDelayBuffer;
-int gDelayReadPointer = 0;
-int gDelayWritePointer = 0;
+Chorus* chorusEffect;
 
 bool setup(BelaContext *context, void *userData)
 {
@@ -50258,9 +50291,6 @@ bool setup(BelaContext *context, void *userData)
         return false;
     }
 
-
-    gDelayBuffer.resize(context->audioSampleRate * (gBaseDelayTime + gModulationDepth), 0.0);
-
     rt_printf("Loaded the audio file '%s' with %d frames (%.1f seconds)\n",
               gFilename.c_str(), gSampleBuffer.size(),
               gSampleBuffer.size() / context->audioSampleRate);
@@ -50268,48 +50298,44 @@ bool setup(BelaContext *context, void *userData)
     gui.setup(context->projectName);
     gGuiController.setup(&gui, "Chorus Controller");
 
+
     gGuiController.addSlider("Mix level", 50, 0, 100, 0);
-    gGuiController.addSlider("Delay time", 0.02, 0.02, 0.03, 0);
+    gGuiController.addSlider("Delay time", 0.02, 0.02, 0.05, 0);
     gGuiController.addSlider("LFO frequency", 0.1, 0.1, 3, 0);
+
+
+    chorusEffect = new Chorus(context->audioSampleRate, 0.05, 0.01, 0.5);
 
     return true;
 }
 
+
+
+
+
 void render(BelaContext *context, void *userData)
 {
-    gMixLevel = gGuiController.getSliderValue(0) * 0.01;
-    gBaseDelayTime = gGuiController.getSliderValue(1);
-    gLFOFrequency = gGuiController.getSliderValue(2);
+
+    chorusEffect->setMixLevel(gGuiController.getSliderValue(0) * 0.01);
+    chorusEffect->setBaseDelayTime(gGuiController.getSliderValue(1));
+    chorusEffect->setLFOFrequency(gGuiController.getSliderValue(2));
 
     for (unsigned int n = 0; n < context->audioFrames; n++)
     {
-        float original = gSampleBuffer[gReadPointer];
-
-
-        float currentDelayTime = gBaseDelayTime + gModulationDepth * sinf(2.0 * 3.14159265358979323846 * gLFOPhase);
-        int delaySamples = currentDelayTime * context->audioSampleRate;
-        int delayReadPointer = (gDelayWritePointer - delaySamples + gDelayBuffer.size()) % gDelayBuffer.size();
-
-        float delayed = gDelayBuffer[delayReadPointer];
-        gDelayBuffer[gDelayWritePointer] = original;
-
-        gDelayWritePointer = (gDelayWritePointer + 1) % gDelayBuffer.size();
-        gReadPointer = (gReadPointer + 1) % gSampleBuffer.size();
-
-
-        gLFOPhase += gLFOFrequency / context->audioSampleRate;
-        if (gLFOPhase >= 1.0)
-            gLFOPhase = 0;
-
-        float mixed = (1.0 - gMixLevel) * original + gMixLevel * delayed;
+        float mixedSample = chorusEffect->process(gSampleBuffer[gReadPointer]);
 
         for (unsigned int channel = 0; channel < context->audioOutChannels; channel++)
         {
-            audioWrite(context, n, channel, mixed);
+            audioWrite(context, n, channel, mixedSample);
         }
+
+
+        gReadPointer = (gReadPointer + 1) % gSampleBuffer.size();
     }
 }
 
 void cleanup(BelaContext *context, void *userData)
 {
+
+    delete chorusEffect;
 }
