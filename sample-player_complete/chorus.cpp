@@ -1,41 +1,39 @@
 #include "chorus.h"
+#include <cmath> // for sin and M_PI
 
 Chorus::Chorus(float sampleRate, float baseDelayTime, float modulationDepth, float lfoFrequency)
-    : gMixLevel(0.5), gBaseDelayTime(baseDelayTime), gModulationDepth(modulationDepth), gLFOFrequency(lfoFrequency), gLFOPhase(0.0), gSampleRate(sampleRate)
+    : gBaseDelayTime(baseDelayTime), gModulationDepth(modulationDepth),
+      gLFOFrequency(lfoFrequency), gLFOPhase(0.0), gSampleRate(sampleRate)
 {
     // Initialize delay buffer with maximum possible delay time
     gDelayBuffer.resize(sampleRate * (baseDelayTime + modulationDepth), 0.0);
-    gDelayReadPointer = 0;
     gDelayWritePointer = 0;
 }
 
 float Chorus::process(float inputSample)
 {
-    // Calculate the current delay time
-    float currentDelayTime = calculateDelayTime();
-    int delaySamples = currentDelayTime * gSampleRate;
-    // Prevent the read pointe from going out of bound
-    gDelayReadPointer = (gDelayWritePointer - delaySamples + gDelayBuffer.size()) % gDelayBuffer.size();
-
-    // Get delayed sample and update the delay buffer
-    float delayedSample = gDelayBuffer[gDelayReadPointer];
-    gDelayBuffer[gDelayWritePointer] = inputSample;
-
-    // Update pointers
-    gDelayWritePointer = (gDelayWritePointer + 1) % gDelayBuffer.size();
-
-    // Calculate the mixed sample
-    float mixedSample = (1.0 - gMixLevel) * inputSample + gMixLevel * delayedSample;
-
-    // Update LFO phase
+    // Update the LFO phase
     updateLFOPhase();
 
-    return mixedSample;
-}
+   // Calculate the current delay time using LFO
+    float currentDelayTime = calculateDelayTime();
+    float delaySamples = currentDelayTime * gSampleRate;
 
-void Chorus::setMixLevel(float mixLevel)
-{
-    gMixLevel = mixLevel;
+    // Calculate read pointer position with wrap-around
+    int readPointer = static_cast<int>(delaySamples);
+    float frac = delaySamples - readPointer; // fractional part of delaySamples
+    readPointer = (gDelayWritePointer - readPointer + gDelayBuffer.size()) % gDelayBuffer.size();
+
+    // Calculate the next read pointer position
+    int nextReadPointer = (readPointer + 1) % gDelayBuffer.size();
+
+    // Write the incoming sample to the delay buffer
+    gDelayBuffer[gDelayWritePointer] = inputSample;
+
+    // Increment write pointer with wrap-around
+    gDelayWritePointer = (gDelayWritePointer + 1) % gDelayBuffer.size();
+
+    return (1 - frac) * gDelayBuffer[readPointer] + frac * gDelayBuffer[nextReadPointer];
 }
 
 void Chorus::setBaseDelayTime(float baseDelayTime)
@@ -52,10 +50,10 @@ void Chorus::updateLFOPhase()
 {
     gLFOPhase += gLFOFrequency / gSampleRate;
     if (gLFOPhase >= 1.0)
-        gLFOPhase = 0.0;
+        gLFOPhase -= 1.0; // Use phase wrapping
 }
 
 float Chorus::calculateDelayTime()
 {
-    return gBaseDelayTime + gModulationDepth * sinf(2.0 * M_PI * gLFOPhase);
+    return gBaseDelayTime + gModulationDepth * sin(2.0 * M_PI * gLFOPhase);
 }

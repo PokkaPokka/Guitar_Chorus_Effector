@@ -1,0 +1,151 @@
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/debouncer.cpp"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 365 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/debouncer.cpp" 2
+
+# 1 "/root/Bela/projects/Guitar_Chorus_Effctor/debouncer.h" 1
+
+
+
+class Debouncer {
+private:
+
+ enum {
+  kStateLow = 0,
+  kStateJustHigh,
+  kStateHigh,
+  kStateJustLow
+ };
+
+public:
+
+ Debouncer();
+
+
+ Debouncer(float sampleRate, float interval);
+
+
+ void setup(float sampleRate, float interval);
+
+
+ bool process(bool rawInput);
+
+
+ bool currentValue();
+
+
+ bool risingEdge();
+
+
+ bool fallingEdge();
+
+
+ ~Debouncer();
+
+private:
+
+ int currentState_;
+ int previousState_;
+ int counter_;
+ int debounceInterval_;
+};
+# 3 "/root/Bela/projects/Guitar_Chorus_Effctor/debouncer.cpp" 2
+
+
+Debouncer::Debouncer()
+{
+ setup(1, 1);
+}
+
+
+Debouncer::Debouncer(float sampleRate, float interval)
+{
+ setup(sampleRate, interval);
+}
+
+
+void Debouncer::setup(float sampleRate, float interval)
+{
+ debounceInterval_ = sampleRate * interval;
+ currentState_ = previousState_ = kStateLow;
+ counter_ = 0;
+}
+
+
+bool Debouncer::process(bool rawInput)
+{
+
+
+ previousState_ = currentState_;
+
+
+    if(currentState_ == kStateLow) {
+
+     if(rawInput) {
+
+      currentState_ = kStateJustHigh;
+      counter_ = 0;
+     }
+    }
+    else if(currentState_ == kStateJustHigh) {
+
+
+
+     if(++counter_ >= debounceInterval_) {
+
+      currentState_ = kStateHigh;
+     }
+    }
+    else if(currentState_ == kStateHigh) {
+
+
+
+     if(!rawInput) {
+      currentState_ = kStateJustLow;
+      counter_ = 0;
+     }
+    }
+    else if(currentState_ == kStateJustLow) {
+
+
+
+     if(++counter_ >= debounceInterval_) {
+
+      currentState_ = kStateLow;
+     }
+    }
+
+    return currentValue();
+}
+
+
+bool Debouncer::currentValue()
+{
+ if(currentState_ == kStateHigh || currentState_ == kStateJustHigh)
+  return true;
+ return false;
+}
+
+
+bool Debouncer::risingEdge()
+{
+ if(currentState_ == kStateJustHigh && previousState_ == kStateLow)
+  return true;
+ return false;
+}
+
+
+bool Debouncer::fallingEdge()
+{
+ if(currentState_ == kStateJustLow && previousState_ == kStateHigh)
+  return true;
+ return false;
+}
+
+
+Debouncer::~Debouncer()
+{
+}

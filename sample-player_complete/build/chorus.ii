@@ -17385,43 +17385,43 @@ class Chorus {
      void setLFOFrequency(float lfoFrequency);
 };
 # 2 "/root/Bela/projects/Guitar_Chorus_Effctor/chorus.cpp" 2
+# 1 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/cmath" 1 3
+# 40 "/usr/bin/../lib/gcc/arm-linux-gnueabihf/6.3.0/../../../../include/c++/6.3.0/cmath" 3
+# 3 "/root/Bela/projects/Guitar_Chorus_Effctor/chorus.cpp" 2
 
 Chorus::Chorus(float sampleRate, float baseDelayTime, float modulationDepth, float lfoFrequency)
-    : gMixLevel(0.5), gBaseDelayTime(baseDelayTime), gModulationDepth(modulationDepth), gLFOFrequency(lfoFrequency), gLFOPhase(0.0), gSampleRate(sampleRate)
+    : gBaseDelayTime(baseDelayTime), gModulationDepth(modulationDepth),
+      gLFOFrequency(lfoFrequency), gLFOPhase(0.0), gSampleRate(sampleRate)
 {
 
     gDelayBuffer.resize(sampleRate * (baseDelayTime + modulationDepth), 0.0);
-    gDelayReadPointer = 0;
     gDelayWritePointer = 0;
 }
 
 float Chorus::process(float inputSample)
 {
 
+    updateLFOPhase();
+
+
     float currentDelayTime = calculateDelayTime();
-    int delaySamples = currentDelayTime * gSampleRate;
-
-    gDelayReadPointer = (gDelayWritePointer - delaySamples + gDelayBuffer.size()) % gDelayBuffer.size();
+    float delaySamples = currentDelayTime * gSampleRate;
 
 
-    float delayedSample = gDelayBuffer[gDelayReadPointer];
+    int readPointer = static_cast<int>(delaySamples);
+    float frac = delaySamples - readPointer;
+    readPointer = (gDelayWritePointer - readPointer + gDelayBuffer.size()) % gDelayBuffer.size();
+
+
+    int nextReadPointer = (readPointer + 1) % gDelayBuffer.size();
+
+
     gDelayBuffer[gDelayWritePointer] = inputSample;
 
 
     gDelayWritePointer = (gDelayWritePointer + 1) % gDelayBuffer.size();
 
-
-    float mixedSample = (1.0 - gMixLevel) * inputSample + gMixLevel * delayedSample;
-
-
-    updateLFOPhase();
-
-    return mixedSample;
-}
-
-void Chorus::setMixLevel(float mixLevel)
-{
-    gMixLevel = mixLevel;
+    return (1 - frac) * gDelayBuffer[readPointer] + frac * gDelayBuffer[nextReadPointer];
 }
 
 void Chorus::setBaseDelayTime(float baseDelayTime)
@@ -17438,10 +17438,10 @@ void Chorus::updateLFOPhase()
 {
     gLFOPhase += gLFOFrequency / gSampleRate;
     if (gLFOPhase >= 1.0)
-        gLFOPhase = 0.0;
+        gLFOPhase -= 1.0;
 }
 
 float Chorus::calculateDelayTime()
 {
-    return gBaseDelayTime + gModulationDepth * sinf(2.0 * 3.14159265358979323846 * gLFOPhase);
+    return gBaseDelayTime + gModulationDepth * sin(2.0 * 3.14159265358979323846 * gLFOPhase);
 }

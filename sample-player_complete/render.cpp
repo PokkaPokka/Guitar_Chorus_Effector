@@ -3,72 +3,86 @@
 #include <libraries/Gui/Gui.h>
 #include <libraries/GuiController/GuiController.h>
 #include "chorus.h"
+#include "debouncer.h"
 
-Gui gui;
-GuiController gGuiController;
+#include <array>
+#include <memory>
 
 std::string gFilename = "guitarLoop.wav";
 std::vector<float> gSampleBuffer;
 int gReadPointer = 0;
+float gMixLevel = 0;
+const unsigned int kButtonPin = 0;
+int voiceNum = 4;
+Debouncer gDebouncer;
 
-// A pointer to the Chrous instance
-Chorus* chorusEffect;
+// An array to store up to 14 Chorus instance for multi-voice chorus
+std::array<std::unique_ptr<Chorus>, 14> chorusEffect;
 
-bool setup(BelaContext *context, void *userData)
-{
+bool setup(BelaContext *context, void *userData) {
+	// Set button pin as an input
+	pinMode(context, 0, kButtonPin, INPUT);
+	
     gSampleBuffer = AudioFileUtilities::loadMono(gFilename);
 
-    if (gSampleBuffer.size() == 0)
-    {
-        rt_printf("Error loading audio file '%s'\n", gFilename.c_str());
-        return false;
-    }
-
-    rt_printf("Loaded the audio file '%s' with %d frames (%.1f seconds)\n",
-              gFilename.c_str(), gSampleBuffer.size(),
-              gSampleBuffer.size() / context->audioSampleRate);
-
-    gui.setup(context->projectName);
-    gGuiController.setup(&gui, "Chorus Controller");
-
-    // Add GUI controls
-    gGuiController.addSlider("Mix level", 50, 0, 100, 0);
-    gGuiController.addSlider("Delay time", 0.02, 0.02, 0.05, 0);
-    gGuiController.addSlider("LFO frequency", 0.1, 0.1, 3, 0);
-
     // Create an instance of Chorus(sampleRate, delayTime, ModulationDepth, lfoFreqeuncy)
-    chorusEffect = new Chorus(context->audioSampleRate, 0.05, 0.01, 0.5);
+	for (int i = 0; i < 14; i++) {
+	    chorusEffect[i].reset(new Chorus(context->audioSampleRate, 0.05, 0.005, 0.5));
+	}
+	
+	gDebouncer.setup(context->audioSampleRate, .05);
 
     return true;
 }
 
-//*********************************************************************************//
-//*********************************************************************************//
+void render(BelaContext *context, void *userData) {
+    for (unsigned int n = 0; n < context->audioFrames; n++) {
+    	// Read from analog inputs
+    	float mixLevel = map(analogRead(context, n/2, 0), 0, 3.3 / 4.096, 0, 100) * 0.01;
+		float baseDelayTime = map(analogRead(context, n/2, 1), 0, 3.3 / 4.096, 0.002, 0.004);
+		float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.1, 0.8);
+		float voiceNumReciprocal = 1.0f / voiceNum;
+		int buttonValue = digitalRead(context, n, kButtonPin);
+		
+		// Debounce the button
+		gDebouncer.process(buttonValue);
+		if( gDebouncer.fallingEdge() ) {
+			if (voiceNum >= 14) {
+				voiceNum = 4;
+			} else {
+				voiceNum += 2;
+			}
+    	}  
+		
+		for (int i = 0; i < voiceNum; i++) {
+        	chorusEffect[i]->setBaseDelayTime(baseDelayTime);
+        	chorusEffect[i]->setLFOFrequency(lfoFrequency * (1 + 0.005 * i));
+    	}	
+    	
+        float mixedSample = 0;
+        float originalSample = gSampleBuffer[gReadPointer];
 
-
-void render(BelaContext *context, void *userData)
-{
-	// Set parameter values
-    chorusEffect->setMixLevel(gGuiController.getSliderValue(0) * 0.01);
-    chorusEffect->setBaseDelayTime(gGuiController.getSliderValue(1));
-    chorusEffect->setLFOFrequency(gGuiController.getSliderValue(2));
-
-    for (unsigned int n = 0; n < context->audioFrames; n++)
-    {
-        float mixedSample = chorusEffect->process(gSampleBuffer[gReadPointer]);
-
-        for (unsigned int channel = 0; channel < context->audioOutChannels; channel++)
-        {
-            audioWrite(context, n, channel, mixedSample);
+        // Process each voice and mix the output
+        for (int i = 0; i < voiceNum; i++) {
+            mixedSample += chorusEffect[i]->process(gSampleBuffer[gReadPointer]);
+        }
+        
+        // Mix the original and processed samples
+        float out = (1 - mixLevel) * originalSample 
+                    + mixLevel * mixedSample * voiceNumReciprocal;
+      
+        for (unsigned int channel = 0; channel < context->audioOutChannels; channel++) {
+            audioWrite(context, n, channel, out);
         }
 
-		// Prevent the read pointer from going out of bound
+        // Prevent the read pointer from going out of bound
         gReadPointer = (gReadPointer + 1) % gSampleBuffer.size();
     }
 }
 
-void cleanup(BelaContext *context, void *userData)
-{
+void cleanup(BelaContext *context, void *userData) {
     // Clean up the chorus effect instance
-    delete chorusEffect;
+    for(auto& chorus : chorusEffect) {
+        chorus.reset();
+    }
 }

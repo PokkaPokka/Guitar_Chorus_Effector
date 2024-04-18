@@ -7,7 +7,8 @@
   include/JSONValue.h include/DataBuffer.h \
   libraries/GuiController/GuiController.h \
   libraries/GuiController/GuiSlider.h \
-  /root/Bela/projects/Guitar_Chorus_Effctor/chorus.h
+  /root/Bela/projects/Guitar_Chorus_Effctor/chorus.h \
+  /root/Bela/projects/Guitar_Chorus_Effctor/debouncer.h
 
 include/Bela.h:
 
@@ -36,3 +37,5 @@ libraries/GuiController/GuiController.h:
 libraries/GuiController/GuiSlider.h:
 
 /root/Bela/projects/Guitar_Chorus_Effctor/chorus.h:
+
+/root/Bela/projects/Guitar_Chorus_Effctor/debouncer.h:
