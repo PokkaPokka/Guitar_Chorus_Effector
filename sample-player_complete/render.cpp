@@ -39,18 +39,30 @@ void render(BelaContext *context, void *userData) {
     for (unsigned int n = 0; n < context->audioFrames; n++) {
     	// Read from analog inputs
     	float mixLevel = map(analogRead(context, n/2, 0), 0, 3.3 / 4.096, 0, 100) * 0.01;
-		float baseDelayTime = map(analogRead(context, n/2, 1), 0, 3.3 / 4.096, 0.002, 0.004);
-		float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.1, 0.8);
+		float baseDelayTime = map(analogRead(context, n/2, 1), 0, 3.3 / 4.096, 0.001, 0.049);
+		float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.01, 0.5);
 		float voiceNumReciprocal = 1.0f / voiceNum;
 		int buttonValue = digitalRead(context, n, kButtonPin);
 		
 		// Debounce the button
 		gDebouncer.process(buttonValue);
 		if( gDebouncer.fallingEdge() ) {
-			if (voiceNum >= 14) {
-				voiceNum = 4;
-			} else {
-				voiceNum += 2;
+			switch (voiceNum) {
+			    case 4:
+			        voiceNum += 4;
+			        break;
+			    case 8:
+			        voiceNum += 4;
+			        break;
+			    case 12:
+			        voiceNum += 2;
+			        break;
+			    case 14:
+			    	voiceNum = 4;
+			    	break;
+			    default:
+			        voiceNum = 4;
+			        break;
 			}
     	}  
 		

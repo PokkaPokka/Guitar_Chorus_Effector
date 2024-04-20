@@ -8,6 +8,10 @@ Chorus::Chorus(float sampleRate, float baseDelayTime, float modulationDepth, flo
     // Initialize delay buffer with maximum possible delay time
     gDelayBuffer.resize(sampleRate * (baseDelayTime + modulationDepth), 0.0);
     gDelayWritePointer = 0;
+    // Initialize the sine table
+    for (int i = 0; i < 360; i++) {
+        sineTable.push_back(sin(2.0 * M_PI * i / 360.0));
+    }
 }
 
 float Chorus::process(float inputSample)
@@ -50,10 +54,20 @@ void Chorus::updateLFOPhase()
 {
     gLFOPhase += gLFOFrequency / gSampleRate;
     if (gLFOPhase >= 1.0)
-        gLFOPhase -= 1.0; // Use phase wrapping
+        gLFOPhase = 0.0; // Use phase wrapping
 }
 
 float Chorus::calculateDelayTime()
 {
-    return gBaseDelayTime + gModulationDepth * sin(2.0 * M_PI * gLFOPhase);
+    float index = gLFOPhase * 360.0;
+    int indexInt = static_cast<int>(index);
+    float frac = index - indexInt; // fractional part of index
+
+    // Calculate the next index position with wrap-around
+    int nextIndex = (indexInt + 1) % 360;
+
+    // Linearly interpolate between the values at the index and nextIndex positions
+    float interpolatedValue = (1 - frac) * sineTable[indexInt] + frac * sineTable[nextIndex];
+
+    return gBaseDelayTime + gModulationDepth * interpolatedValue;
 }

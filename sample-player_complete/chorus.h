@@ -18,7 +18,8 @@ class Chorus {
 	    int gDelayReadPointer;
 	    int gDelayWritePointer;
 	    float gSampleRate;
-	    
+		std::vector<float> sineTable;
+		
 	    void updateLFOPhase();
 	    float calculateDelayTime();
     
