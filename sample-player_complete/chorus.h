@@ -13,6 +13,7 @@ class Chorus {
 	    float gModulationDepth;
 	    float gLFOFrequency;
 	    float gLFOPhase;
+	    float gLastOutputSample;
 	
 	    std::vector<float> gDelayBuffer;
 	    int gDelayReadPointer;
