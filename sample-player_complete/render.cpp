@@ -27,7 +27,7 @@ bool setup(BelaContext *context, void *userData) {
 
     // Create an instance of Chorus(sampleRate, delayTime, ModulationDepth, lfoFreqeuncy)
 	for (int i = 0; i < 14; i++) {
-	    chorusEffect[i].reset(new Chorus(context->audioSampleRate, 0.05, 0.005, 0.5));
+	    chorusEffect[i].reset(new Chorus(context->audioSampleRate, 0.06, 0.003, 0.5));
 	}
 	
 	gDebouncer.setup(context->audioSampleRate, .05);
@@ -39,8 +39,8 @@ void render(BelaContext *context, void *userData) {
     for (unsigned int n = 0; n < context->audioFrames; n++) {
     	// Read from analog inputs
     	float mixLevel = map(analogRead(context, n/2, 0), 0, 3.3 / 4.096, 0, 100) * 0.01;
-		float baseDelayTime = map(analogRead(context, n/2, 1), 0, 3.3 / 4.096, 0.001, 0.049);
-		float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.01, 0.5);
+		float baseDelayTime = map(analogRead(context, n/2, 1), 0, 3.3 / 4.096, 0.000, 0.05);
+		float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.00, 1.0);
 		float voiceNumReciprocal = 1.0f / voiceNum;
 		int buttonValue = digitalRead(context, n, kButtonPin);
 		
@@ -67,8 +67,8 @@ void render(BelaContext *context, void *userData) {
     	}  
 		
 		for (int i = 0; i < voiceNum; i++) {
-        	chorusEffect[i]->setBaseDelayTime(baseDelayTime);
-        	chorusEffect[i]->setLFOFrequency(lfoFrequency * (1 + 0.005 * i));
+		    chorusEffect[i]->setBaseDelayTime(baseDelayTime);
+        	chorusEffect[i]->setLFOFrequency(lfoFrequency * (1 + 0.05 * i));
     	}	
     	
         float mixedSample = 0;
