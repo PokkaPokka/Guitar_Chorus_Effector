@@ -9,7 +9,7 @@
 #include <array>
 #include <memory>
 
-std::string gFilename = "guitarLoop__1_.wav";
+std::string gFilename = "guitarLoop.wav";
 std::vector<float> gSampleBuffer;
 int gReadPointer = 0;
 float gMixLevel = 0;
