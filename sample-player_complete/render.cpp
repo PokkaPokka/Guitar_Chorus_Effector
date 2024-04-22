@@ -11,6 +11,8 @@
 std::string gFilename = "guitarLoop.wav";
 float gMixLevel = 0;
 const unsigned int kButtonPin = 0;
+const unsigned int kLedPin1 = 1;  // LED for voiceNum change
+const unsigned int kLedPin2 = 2;  // LED when voiceNum is 4
 int voiceNum = 4;
 Debouncer gDebouncer;
 
@@ -20,6 +22,8 @@ std::array<std::unique_ptr<Chorus>, 14> chorusEffect;
 bool setup(BelaContext *context, void *userData) {
 	// Set button pin as an input
 	pinMode(context, 0, kButtonPin, INPUT);
+	pinMode(context, 0, kLedPin1, OUTPUT);
+    	pinMode(context, 0, kLedPin2, OUTPUT);
 	
     // Create an instance of Chorus(sampleRate, delayTime, ModulationDepth, lfoFreqeuncy)
 	for (int i = 0; i < 14; i++) {
@@ -41,6 +45,7 @@ void render(BelaContext *context, void *userData) {
 			float lfoFrequency = map(analogRead(context, n/2, 2), 0, 3.3 / 4.096, 0.00, 1.0);
 			float voiceNumReciprocal = 1.0f / voiceNum;
 			int buttonValue = digitalRead(context, n, kButtonPin);
+		
 			
 			// Debounce the button
 			gDebouncer.process(buttonValue);
@@ -62,7 +67,10 @@ void render(BelaContext *context, void *userData) {
 				        voiceNum = 4;
 				        break;
 				}
-	    	}  
+	    		}
+			// Set LED state
+		        digitalWrite(context, n, kLedPin1, voiceNum == 4 || voiceNum == 8 || voiceNum == 12 ? HIGH : LOW);
+		        digitalWrite(context, n, kLedPin2, voiceNum == 4 || voiceNum == 6 || voiceNum == 10 || voiceNum == 14 ? HIGH : LOW);
 			
 			for (int i = 0; i < voiceNum; i++) {
 			    chorusEffect[i]->setBaseDelayTime(baseDelayTime);
@@ -92,4 +100,6 @@ void cleanup(BelaContext *context, void *userData) {
     for(auto& chorus : chorusEffect) {
         chorus.reset();
     }
+    digitalWrite(context, 0, kLedPin1, LOW);
+    digitalWrite(context, 0, kLedPin2, LOW);
 }
