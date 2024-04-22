@@ -70,8 +70,8 @@ void render(BelaContext *context, void *userData) {
                 }
             }
             // Control LED states based on current voice number
-            digitalWrite(context, n, kLedPin1, voiceNum == 4 || voiceNum == 8 || voiceNum == 12 ? HIGH : LOW);
-            digitalWrite(context, n, kLedPin2, voiceNum == 4 || voiceNum == 6 || voiceNum == 10 || voiceNum == 14 ? HIGH : LOW);
+            digitalWrite(context, n, kLedPin1, voiceNum == 4 || voiceNum == 12 ? HIGH : LOW);
+            digitalWrite(context, n, kLedPin2, voiceNum == 4 || voiceNum == 8 voiceNum == 14 ? HIGH : LOW);
             
             // Update chorus parameters and process audio
             for (int i = 0; i < voiceNum; i++) {
